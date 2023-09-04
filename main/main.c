@@ -12,14 +12,17 @@
 #include "host/ble_hs.h"
 #include "host/util/util.h"
 #include "services/gap/ble_svc_gap.h"
+#include "services/gatt/ble_svc_gatt.h"
 #include "DAP_config.h"
 #include "DAP.h"
+#include "hid_dap.h"
 
 static const char* TAG = "main";
 
 static const char* DEVICE_NAME = "bluedap";
 
-uint8_t ble_addr_type;  // BLE address type
+static uint8_t ble_addr_type;  // BLE address type
+static uint16_t ble_conn_handle;    // BLE connection handle
 
 int on_adv_event(struct ble_gap_event *event, void *arg);
 
@@ -36,6 +39,13 @@ void ble_advertise()
     adv_fields.name = (uint8_t*)DEVICE_NAME;
     adv_fields.name_len = strlen(DEVICE_NAME);
     adv_fields.name_is_complete = 1;    // Include device name
+    adv_fields.appearance = BLE_SVC_GAP_APPEARANCE_GEN_HID; // Generic HID appearance
+    adv_fields.appearance_is_present = 1;   // Include appearance
+    // Declare implemented services
+    ble_uuid16_t service_uuids16[] = { SVC_UUID_HID, SVC_UUID_BATTERY, SVC_UUID_DEVICE_INFO };
+    adv_fields.uuids16 = service_uuids16;
+    adv_fields.num_uuids16 = sizeof(service_uuids16) / sizeof(ble_uuid16_t);
+    adv_fields.uuids16_is_complete = 1;
 
     rc = ble_gap_adv_set_fields(&adv_fields);
     assert(rc == 0);
@@ -57,9 +67,32 @@ int on_adv_event(struct ble_gap_event *event, void *arg)
 {
     switch (event->type) {
     case BLE_GAP_EVENT_ADV_COMPLETE:
-        ESP_LOGI(TAG, "BLE advertisement completed (reason = %d)", event->adv_complete.reason);
+        ESP_LOGI(TAG, "BLE advertisement completed (reason = 0x%04x)", event->adv_complete.reason);
         ble_advertise();
         break;
+    
+    case BLE_GAP_EVENT_CONNECT:
+        if (event->connect.status == 0) {
+            ESP_LOGI(TAG, "BLE connection established");
+            ble_conn_handle = event->connect.conn_handle;
+        } else {
+            ESP_LOGI(TAG, "BLE connection failed (status = 0x%04x)", event->connect.status);
+            ble_advertise();
+        }
+        break;
+    
+    case BLE_GAP_EVENT_CONN_UPDATE_REQ:
+        ESP_LOGI(TAG, "Updating BLE connection parameters");
+        event->conn_update_req.conn_handle = ble_conn_handle;
+        event->conn_update_req.peer_params = NULL;  // default
+        break;
+    
+    case BLE_GAP_EVENT_DISCONNECT:
+        ESP_LOGI(TAG, "BLE disconnect (reason = 0x%04x)", event->disconnect.reason);
+        ble_conn_handle = BLE_HS_CONN_HANDLE_NONE;
+        ble_advertise();
+        break;
+
     default:
         break;
     }
@@ -83,7 +116,7 @@ void on_ble_sync()
     assert(rc == 0);
 
     ESP_LOGI(TAG, "BLE address: %02X:%02X:%02X:%02X:%02X:%02X %s",
-        addr[0], addr[1], addr[2], addr[3], addr[4], addr[5],
+        addr[5], addr[4], addr[3], addr[2], addr[1], addr[0],
         is_nrpa ? "(NRPA)" : ""
     );
 
@@ -93,7 +126,7 @@ void on_ble_sync()
 // Called when BLE stack is reset due to error
 void on_ble_reset(int reason)
 {
-    ESP_LOGE(TAG, "BLE reset (reason = %d)", reason);
+    ESP_LOGE(TAG, "BLE reset (reason = 0x%04x)", reason);
 }
 
 // A FreeRTOS task that runs BLE host
@@ -121,7 +154,17 @@ void app_main(void)
     ble_hs_cfg.sync_cb = on_ble_sync;
     ble_hs_cfg.reset_cb = on_ble_reset;
 
+    ble_svc_gap_init();
+    ble_svc_gatt_init();
+
     rc = ble_svc_gap_device_name_set(DEVICE_NAME);
+    assert(rc == 0);
+
+    // Increase ATT_MTU as large as possible (because maximum length of HID report in notification is limited by ATT_MTU)
+    rc = ble_att_set_preferred_mtu(BLE_ATT_MTU_MAX);
+    assert(rc == 0);
+
+    rc = hid_dap_init();
     assert(rc == 0);
 
     // Start BLE task
