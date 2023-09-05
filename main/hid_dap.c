@@ -4,19 +4,6 @@
 #include "host/ble_hs.h"
 #include "services/gatt/ble_svc_gatt.h"
 
-const ble_uuid16_t SVC_UUID_HID = BLE_UUID16_INIT(0x1812);
-const ble_uuid16_t SVC_UUID_BATTERY = BLE_UUID16_INIT(0x180F);
-const ble_uuid16_t SVC_UUID_DEVICE_INFO = BLE_UUID16_INIT(0x180A);
-
-const ble_uuid16_t CHR_UUID_HID_REPORT = BLE_UUID16_INIT(0x2A4D);
-const ble_uuid16_t CHR_UUID_HID_REPORT_MAP = BLE_UUID16_INIT(0x2A4B);
-const ble_uuid16_t CHR_UUID_HID_INFORMATION = BLE_UUID16_INIT(0x2A4A);
-const ble_uuid16_t CHR_UUID_HID_CONTROL_POINT = BLE_UUID16_INIT(0x2A4C);
-const ble_uuid16_t CHR_UUID_BATTERY_LEVEL = BLE_UUID16_INIT(0x2A19);
-const ble_uuid16_t CHR_UUID_DEVICE_INFO_PNP_ID = BLE_UUID16_INIT(0x2A50);
-
-const ble_uuid16_t DSC_UUID_REPORT_REFERENCE = BLE_UUID16_INIT(0x2908);
-
 static const char REPORT_DESCRIPTOR[] = {
     0x06, 0x00, 0xff,              // USAGE_PAGE (Vendor Defined Page 1)
     0x09, 0x01,                    // USAGE (Vendor Usage 1)
@@ -50,18 +37,18 @@ static const struct ble_gatt_svc_def gatt_services[] = {
     // HID service
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = &SVC_UUID_HID.u,
+        .uuid = BLE_UUID16_DECLARE(SVC_UUID16_HID),
         .characteristics = (struct ble_gatt_chr_def[]) {
             // Input Report (device to PC)
             {
-                .uuid = &CHR_UUID_HID_REPORT.u,
+                .uuid = BLE_UUID16_DECLARE(CHR_UUID16_HID_REPORT),
                 .access_cb = on_hid_input_report_access,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
                 .descriptors = (struct ble_gatt_dsc_def[]) {
                     // Client Characteristic Configuration descriptor (CCCD) is not included because it is automatically added by stack.
                     // Report Reference descriptor
                     {
-                        .uuid = &DSC_UUID_REPORT_REFERENCE.u,
+                        .uuid = BLE_UUID16_DECLARE(DSC_UUID16_REPORT_REFERENCE),
                         .access_cb = on_hid_input_report_reference_access,
                         .att_flags = BLE_ATT_F_READ
                     },
@@ -73,13 +60,13 @@ static const struct ble_gatt_svc_def gatt_services[] = {
             },
             // Output Report (PC to device)
             {
-                .uuid = &CHR_UUID_HID_REPORT.u,
+                .uuid = BLE_UUID16_DECLARE(CHR_UUID16_HID_REPORT),
                 .access_cb = on_hid_output_report_access,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
                 .descriptors = (struct ble_gatt_dsc_def[]) {
                     // Report Reference descriptor
                     {
-                        .uuid = &DSC_UUID_REPORT_REFERENCE.u,
+                        .uuid = BLE_UUID16_DECLARE(DSC_UUID16_REPORT_REFERENCE),
                         .access_cb = on_hid_output_report_reference_access,
                         .att_flags = BLE_ATT_F_READ
                     },
@@ -91,19 +78,19 @@ static const struct ble_gatt_svc_def gatt_services[] = {
             },
             // Report Map characteristic
             {
-                .uuid = &CHR_UUID_HID_REPORT_MAP.u,
+                .uuid = BLE_UUID16_DECLARE(CHR_UUID16_HID_REPORT_MAP),
                 .access_cb = on_hid_report_map_access,
                 .flags = BLE_GATT_CHR_F_READ
             },
             // HID Information characteristic
             {
-                .uuid = &CHR_UUID_HID_INFORMATION.u,
+                .uuid = BLE_UUID16_DECLARE(CHR_UUID16_HID_INFORMATION),
                 .access_cb = on_hid_information_access,
                 .flags = BLE_GATT_CHR_F_READ
             },
             // HID Control Point characteristic
             {
-                .uuid = &CHR_UUID_HID_CONTROL_POINT.u,
+                .uuid = BLE_UUID16_DECLARE(CHR_UUID16_HID_CONTROL_POINT),
                 .access_cb = on_hid_control_point_access,
                 .flags = BLE_GATT_CHR_F_WRITE_NO_RSP
             },
@@ -116,11 +103,11 @@ static const struct ble_gatt_svc_def gatt_services[] = {
     // Battery serice
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = &SVC_UUID_BATTERY.u,
+        .uuid = BLE_UUID16_DECLARE(SVC_UUID16_BATTERY),
         .characteristics = (struct ble_gatt_chr_def[]) {
             // Battery Level characteristice
             {
-                .uuid = &CHR_UUID_BATTERY_LEVEL.u,
+                .uuid = BLE_UUID16_DECLARE(CHR_UUID16_BATTERY_LEVEL),
                 .access_cb = on_battery_level_access,
                 .flags = BLE_GATT_CHR_F_READ
             },
@@ -133,11 +120,11 @@ static const struct ble_gatt_svc_def gatt_services[] = {
     // Device Information service
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = &SVC_UUID_DEVICE_INFO.u,
+        .uuid = BLE_UUID16_DECLARE(SVC_UUID16_DEVICE_INFO),
         .characteristics = (struct ble_gatt_chr_def[]) {
             // PnP ID characteristic
             {
-                .uuid = &CHR_UUID_DEVICE_INFO_PNP_ID.u,
+                .uuid = BLE_UUID16_DECLARE(CHR_UUID16_DEVICE_INFO_PNP_ID),
                 .access_cb = on_device_info_pnp_id_access,
                 .flags = BLE_GATT_CHR_F_READ
             },
@@ -149,7 +136,7 @@ static const struct ble_gatt_svc_def gatt_services[] = {
     },
     // This indicates end of service array
     {
-        NULL
+        .type = 0
     }
 };
 

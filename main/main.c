@@ -46,7 +46,7 @@ void ble_advertise()
     adv_fields.appearance = BLE_SVC_GAP_APPEARANCE_GEN_HID; // Generic HID appearance
     adv_fields.appearance_is_present = 1;   // Include appearance
     // Declare implemented services
-    ble_uuid16_t service_uuids16[] = { SVC_UUID_HID, SVC_UUID_BATTERY, SVC_UUID_DEVICE_INFO };
+    ble_uuid16_t service_uuids16[] = { BLE_UUID16_INIT(SVC_UUID16_HID), BLE_UUID16_INIT(SVC_UUID16_BATTERY), BLE_UUID16_INIT(SVC_UUID16_DEVICE_INFO) };
     adv_fields.uuids16 = service_uuids16;
     adv_fields.num_uuids16 = sizeof(service_uuids16) / sizeof(ble_uuid16_t);
     adv_fields.uuids16_is_complete = 1;
