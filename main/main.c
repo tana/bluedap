@@ -97,6 +97,11 @@ int on_adv_event(struct ble_gap_event *event, void *arg)
         ble_store_util_delete_peer(&conn_desc.peer_id_addr);
         return BLE_GAP_REPEAT_PAIRING_RETRY;    // Old bond is removed and pairing process should be done again
     
+    case BLE_GAP_EVENT_SUBSCRIBE:
+        rc = hid_dap_handle_subscribe_event(event);
+        assert(rc == 0);
+        break;
+    
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGI(TAG, "BLE disconnect (reason = 0x%04x)", event->disconnect.reason);
         ble_conn_handle = BLE_HS_CONN_HANDLE_NONE;

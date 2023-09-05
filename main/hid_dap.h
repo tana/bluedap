@@ -1,6 +1,7 @@
 #pragma once
 
 #include "host/ble_uuid.h"
+#include "host/ble_gap.h"
 
 #define LITTLE_ENDIAN_16BIT(value) (uint8_t)(value & 0x00FF), (uint8_t)((value & 0xFF00) >> 8)
 
@@ -18,3 +19,5 @@
 #define DSC_UUID16_REPORT_REFERENCE 0x2908
 
 int hid_dap_init(void);
+
+int hid_dap_handle_subscribe_event(struct ble_gap_event *event);
