@@ -17,7 +17,7 @@ const ble_uuid16_t CHR_UUID_DEVICE_INFO_PNP_ID = BLE_UUID16_INIT(0x2A50);
 
 const ble_uuid16_t DSC_UUID_REPORT_REFERENCE = BLE_UUID16_INIT(0x2908);
 
-const uint8_t *REPORT_DESCRIPTOR = {
+static const char REPORT_DESCRIPTOR[] = {
     0x06, 0x00, 0xff,              // USAGE_PAGE (Vendor Defined Page 1)
     0x09, 0x01,                    // USAGE (Vendor Usage 1)
     0xa1, 0x01,                    // COLLECTION (Application)
@@ -35,7 +35,6 @@ const uint8_t *REPORT_DESCRIPTOR = {
     0x91, 0x02,                    //   OUTPUT (Data,Var,Abs)
     0xc0                           // END_COLLECTION
 };
-const size_t REPORT_DESCRIPTOR_LEN = 34;
 
 static int on_hid_input_report_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg);
 static int on_hid_input_report_reference_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg);
@@ -194,7 +193,7 @@ static int on_hid_report_map_access(uint16_t conn_handle, uint16_t attr_handle, 
 {
     assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);    // Read-only characteristic
 
-    int rc = os_mbuf_append(ctxt->om, REPORT_DESCRIPTOR, REPORT_DESCRIPTOR_LEN);
+    int rc = os_mbuf_append(ctxt->om, REPORT_DESCRIPTOR, sizeof(REPORT_DESCRIPTOR));
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 

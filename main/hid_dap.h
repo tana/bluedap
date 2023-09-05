@@ -17,7 +17,4 @@ extern const ble_uuid16_t CHR_UUID_DEVICE_INFO_PNP_ID;
 
 extern const ble_uuid16_t DSC_UUID_REPORT_REFERENCE;
 
-extern const uint8_t *REPORT_DESCRIPTOR;
-extern const size_t REPORT_DESCRIPTOR_LEN;
-
 int hid_dap_init(void);
