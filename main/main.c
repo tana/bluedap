@@ -1,3 +1,5 @@
+// Roughly based on esp-idf bluehr example: https://github.com/espressif/esp-idf/tree/master/examples/bluetooth/nimble/blehr
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -23,6 +25,8 @@ static const char* DEVICE_NAME = "bluedap";
 
 static uint8_t ble_addr_type;  // BLE address type
 static uint16_t ble_conn_handle;    // BLE connection handle
+
+void ble_store_config_init(void);   // It seems implemented in NimBLE but not declared in public headers...
 
 int on_adv_event(struct ble_gap_event *event, void *arg);
 
@@ -65,6 +69,9 @@ void ble_advertise()
 // BLE advertisement event handler
 int on_adv_event(struct ble_gap_event *event, void *arg)
 {
+    int rc;
+    struct ble_gap_conn_desc conn_desc;
+
     switch (event->type) {
     case BLE_GAP_EVENT_ADV_COMPLETE:
         ESP_LOGI(TAG, "BLE advertisement completed (reason = 0x%04x)", event->adv_complete.reason);
@@ -81,11 +88,14 @@ int on_adv_event(struct ble_gap_event *event, void *arg)
         }
         break;
     
-    case BLE_GAP_EVENT_CONN_UPDATE_REQ:
-        ESP_LOGI(TAG, "Updating BLE connection parameters");
-        event->conn_update_req.conn_handle = ble_conn_handle;
-        event->conn_update_req.peer_params = NULL;  // default
-        break;
+    case BLE_GAP_EVENT_REPEAT_PAIRING:
+        // Replace bond when the device is already bonded to some device
+        // Reference: esp-idf bleprph example https://github.com/espressif/esp-idf/blob/62ee4135e033cc85eb0d7572e5b5d147bcb4349e/examples/bluetooth/nimble/bleprph/main/main.c#L335-L349
+        ESP_LOGI(TAG, "Replacing old bond with new bond");
+        rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &conn_desc);
+        assert(rc == 0);
+        ble_store_util_delete_peer(&conn_desc.peer_id_addr);
+        return BLE_GAP_REPEAT_PAIRING_RETRY;    // Old bond is removed and pairing process should be done again
     
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGI(TAG, "BLE disconnect (reason = 0x%04x)", event->disconnect.reason);
@@ -139,6 +149,8 @@ void ble_host_task(void *pvParameters)
     nimble_port_freertos_deinit();
 }
 
+void ble_store_config_init(void);
+
 void app_main(void)
 {
     esp_err_t ret;  // ESP-IDF return code
@@ -153,12 +165,23 @@ void app_main(void)
     // Set callbacks for NimBLE host
     ble_hs_cfg.sync_cb = on_ble_sync;
     ble_hs_cfg.reset_cb = on_ble_reset;
+    // Set security/bonding related settings
+    // Reference: esp-idf bleprph example https://github.com/espressif/esp-idf/blob/62ee4135e033cc85eb0d7572e5b5d147bcb4349e/examples/bluetooth/nimble/bleprph/main/main.c#L517-L540
+    ble_hs_cfg.store_status_cb = ble_store_util_status_rr;  // TODO:
+    ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_NO_IO; // This device has no IO (e.g. display, keyboard) for pairing
+    ble_hs_cfg.sm_bonding = 1;  // Enable bonding
+    ble_hs_cfg.sm_our_key_dist |= BLE_SM_PAIR_KEY_DIST_ENC; // ?
+    ble_hs_cfg.sm_their_key_dist |= BLE_SM_PAIR_KEY_DIST_ENC;   // ?
+    ble_hs_cfg.sm_mitm = 1; // Use man-in-the-middle protection
+    ble_hs_cfg.sm_sc = 1;   // Use LE Secure Connections
 
     ble_svc_gap_init();
     ble_svc_gatt_init();
 
     rc = ble_svc_gap_device_name_set(DEVICE_NAME);
     assert(rc == 0);
+
+    ble_store_config_init();
 
     // Increase ATT_MTU as large as possible (because maximum length of HID report in notification is limited by ATT_MTU)
     rc = ble_att_set_preferred_mtu(BLE_ATT_MTU_MAX);
@@ -169,8 +192,4 @@ void app_main(void)
 
     // Start BLE task
     nimble_port_freertos_init(ble_host_task);
-
-    for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
 }

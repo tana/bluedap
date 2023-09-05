@@ -1,3 +1,5 @@
+// Roughly based on esp-idf bluehr example: https://github.com/espressif/esp-idf/tree/master/examples/bluetooth/nimble/blehr
+
 #include "hid_dap.h"
 #include "host/ble_hs.h"
 #include "services/gatt/ble_svc_gatt.h"
@@ -219,7 +221,7 @@ static int on_hid_control_point_access(uint16_t conn_handle, uint16_t attr_handl
 
 static int on_battery_level_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
-    assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_DSC);    // Read-only descriptor
+    assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);    // Read-only characteristic
 
     uint8_t data[] = { 
         100 // TODO:
@@ -231,7 +233,7 @@ static int on_battery_level_access(uint16_t conn_handle, uint16_t attr_handle, s
 
 static int on_device_info_pnp_id_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
-    assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_DSC);    // Read-only descriptor
+    assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);    // Read-only characteristic
 
     uint8_t data[] = { 
         0x02,   // VID assigned by USB Implementer's Forum
