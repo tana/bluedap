@@ -21,7 +21,10 @@
 
 static const char* TAG = "main";
 
-static const char* DEVICE_NAME = "bluedap";
+static const char* DEVICE_NAME_SHORT = "bluedap";
+// To be recognized as a CMSIS-DAP, the Device Name (Product String in USB) must contain it
+// Reference: https://arm-software.github.io/CMSIS_5/DAP/html/group__DAP__ConfigUSB__gr.html
+static const char* DEVICE_NAME_COMPLETE = "bluedap CMSIS-DAP";
 
 static uint8_t ble_addr_type;  // BLE address type
 static uint16_t ble_conn_handle;    // BLE connection handle
@@ -40,9 +43,9 @@ void ble_advertise()
     adv_fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;    // Always discoverable. Classic BT (BR/EDR) is not supported
     adv_fields.tx_pwr_lvl_is_present = true;    // Advertisement include TX power info
     adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO; // TX power info is automatically filled by BLE stack
-    adv_fields.name = (uint8_t*)DEVICE_NAME;
-    adv_fields.name_len = strlen(DEVICE_NAME);
-    adv_fields.name_is_complete = 1;    // Include device name
+    adv_fields.name = (uint8_t*)DEVICE_NAME_SHORT;
+    adv_fields.name_len = strlen(DEVICE_NAME_SHORT);
+    adv_fields.name_is_complete = 0;    // This is a shortened name
     adv_fields.appearance = BLE_SVC_GAP_APPEARANCE_GEN_HID; // Generic HID appearance
     adv_fields.appearance_is_present = 1;   // Include appearance
     // Declare implemented services
@@ -183,7 +186,7 @@ void app_main(void)
     ble_svc_gap_init();
     ble_svc_gatt_init();
 
-    rc = ble_svc_gap_device_name_set(DEVICE_NAME);
+    rc = ble_svc_gap_device_name_set(DEVICE_NAME_COMPLETE);
     assert(rc == 0);
 
     ble_store_config_init();

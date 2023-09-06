@@ -1,4 +1,5 @@
 // Roughly based on esp-idf bluehr example: https://github.com/espressif/esp-idf/tree/master/examples/bluetooth/nimble/blehr
+// Structure of interfacing between HID and DAP is based on CMSIS-DAP MDK5 template: https://github.com/ARM-software/CMSIS_5/blob/develop/CMSIS/DAP/Firmware/Template/MDK5/USBD_User_HID_0.c
 
 #include "hid_dap.h"
 
@@ -6,7 +7,9 @@
 #include "host/ble_hs.h"
 #include "services/gatt/ble_svc_gatt.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/timers.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "DAP.h"
 #include "DAP_config.h"
 
 static const char* TAG = "hid_dap";
@@ -40,10 +43,6 @@ static int on_hid_control_point_access(uint16_t conn_handle, uint16_t attr_handl
 static int on_battery_level_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg);
 static int on_device_info_pnp_id_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg);
 
-static void on_output_report_written(void);
-
-static void on_timer(TimerHandle_t xTimer);
-
 static uint16_t input_report_handle;
 static int input_report_notify_enable = 0;
 static uint16_t conn_handle;
@@ -52,6 +51,15 @@ static uint16_t conn_handle;
 uint8_t input_report_data[DAP_PACKET_SIZE];
 // Output Report data received from PC
 uint8_t output_report_data[DAP_PACKET_SIZE];
+
+// FreeRTOS task handle for BLE task
+TaskHandle_t ble_task_handle;
+// FreeRTOS task handle for DAP task
+TaskHandle_t dap_task_handle;
+// Queue for passing data from BLE task to DAP task
+QueueHandle_t request_queue;
+// Mutex for input report data (to prevent sending or receiving broken data)
+SemaphoreHandle_t input_report_mutex;
 
 static const struct ble_gatt_svc_def gatt_services[] = {
     // HID service
@@ -165,7 +173,10 @@ static int on_hid_input_report_access(uint16_t conn_handle, uint16_t attr_handle
 {
     assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);    // Read-only characteristic
 
+    xSemaphoreTake(input_report_mutex, portMAX_DELAY);
     int rc = os_mbuf_append(ctxt->om, input_report_data, sizeof(input_report_data));
+    xSemaphoreGive(input_report_mutex);
+
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
@@ -190,7 +201,8 @@ static int on_hid_output_report_access(uint16_t conn_handle, uint16_t attr_handl
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
         // See Apache Mynewt tutorial https://mynewt.apache.org/latest/tutorials/ble/bleprph/bleprph-sections/bleprph-chr-access.html#write-access
         rc = ble_hs_mbuf_to_flat(ctxt->om, output_report_data, sizeof(output_report_data), NULL);
-        on_output_report_written();
+        // Send received data to DAP task
+        xQueueSend(request_queue, output_report_data, 0);   // Overflow is ignoread silently
         return (rc == 0) ? 0 : BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     
     case BLE_GATT_ACCESS_OP_READ_CHR:
@@ -272,25 +284,26 @@ static int on_device_info_pnp_id_access(uint16_t conn_handle, uint16_t attr_hand
     return (rc == 0) ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
-static void on_output_report_written(void)
+static void dap_task(void *pvParameters)
 {
-    char data_str[3 * sizeof(output_report_data)];
-    for (int i = 0; i < sizeof(output_report_data); i++) {
-        snprintf(&data_str[3 * i], 3, "%02x", output_report_data[i]);
-        data_str[3 * i + 2] = ' ';  // Replace null character with whitespace
-    }
-    data_str[3 * sizeof(output_report_data)] = '\0';
-    ESP_LOGI(TAG, "Output report written: %s", data_str);
-}
+    static uint8_t request[DAP_PACKET_SIZE];
+    static uint8_t response[DAP_PACKET_SIZE];
 
-static void on_timer(TimerHandle_t xTimer)
-{
-    input_report_data[0] = (input_report_data[0] + 1) % 256;
+    DAP_Setup();
 
-    if (input_report_notify_enable) {
-        // Notify new input report data to the subscribed peer
-        struct os_mbuf *om = ble_hs_mbuf_from_flat(input_report_data, sizeof(input_report_data));
-        ble_gatts_notify_custom(conn_handle, input_report_handle, om);
+    for (;;) {
+        xQueueReceive(request_queue, request, portMAX_DELAY);   // No timeout
+
+        DAP_ExecuteCommand(request, response);
+
+        xSemaphoreTake(input_report_mutex, portMAX_DELAY);
+        memcpy(input_report_data, response, sizeof(input_report_data));
+        xSemaphoreGive(input_report_mutex);
+
+        if (input_report_notify_enable) {
+            // Notify new input report data to the subscribed peer
+            ble_gatts_notify(conn_handle, input_report_handle);
+        }
     }
 }
 
@@ -308,8 +321,11 @@ int hid_dap_init(void)
         return rc;
     }
 
-    TimerHandle_t timer = xTimerCreate("timer", pdMS_TO_TICKS(1000), pdTRUE, NULL, on_timer);
-    xTimerStart(timer, 0);
+    ble_task_handle = xTaskGetCurrentTaskHandle();
+    request_queue = xQueueCreate(DAP_PACKET_COUNT, sizeof(DAP_PACKET_SIZE));
+    input_report_mutex = xSemaphoreCreateMutex();
+    // DAP processing is done in another FreeRTOS task
+    xTaskCreate(dap_task, "dap", 4096, NULL, 2, &dap_task_handle);
 
     return 0;
 }
