@@ -326,22 +326,28 @@ extern void     DAP_Setup (void);
 #ifndef DELAY_SLOW_CYCLES
 #define DELAY_SLOW_CYCLES       3U      // Number of cycles for one iteration
 #endif
-#if defined(__CC_ARM)
-__STATIC_FORCEINLINE void PIN_DELAY_SLOW (uint32_t delay) {
-  uint32_t count = delay;
-  while (--count);
-}
-#else
+#if defined(__riscv)
 __STATIC_FORCEINLINE void PIN_DELAY_SLOW (uint32_t delay) {
   // Delay in RISC-V assembly
-  // TODO: Add Xtensa version
   asm volatile (
-      "loop%=:"
-      "addi %0, %0, -1 \n\t"
-      "bne %0, zero, loop%=\n"
+      "loop%=:\n\t"
+        "addi %0, %0, -1 \n\t"
+        "bne %0, zero, loop%=\n"
     : "+r" (delay)
   );
 }
+#elif defined(__xtensa__)
+__STATIC_FORCEINLINE void PIN_DELAY_SLOW (uint32_t delay) {
+  // Delay in Xtensa assembly
+  asm volatile (
+      "loop%=:\n\t"
+        "addi %0, %0, -1 \n\t"
+        "bnez %0, loop%=\n"
+    : "+r" (delay)
+  );
+}
+#else
+  #error "Only RISC-V and Xtensa architectures are supported."
 #endif
 
 // Fixed delay for fast clock generation
