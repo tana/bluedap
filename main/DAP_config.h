@@ -56,6 +56,8 @@ This information includes:
 #include "sdkconfig.h"
 #include "esp_timer.h"
 #include "driver/gpio.h"
+#include "driver/gptimer.h"
+#include "esp_log.h"
 #include "pin_defs.h"
 
 /// Processor Clock of the Cortex-M MCU used in the Debug Unit.
@@ -124,7 +126,7 @@ This information includes:
 #define SWO_STREAM              0               ///< SWO Streaming Trace: 1 = available, 0 = not available.
 
 /// Clock frequency of the Test Domain Timer. Timer value is returned with \ref TIMESTAMP_GET.
-#define TIMESTAMP_CLOCK         1000000U      ///< Timestamp clock in Hz (0 = timestamps not supported).
+#define TIMESTAMP_CLOCK         (CPU_CLOCK / 4)     ///< Timestamp clock in Hz (0 = timestamps not supported).
 
 /// Indicate that UART Communication Port is available.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
@@ -161,6 +163,8 @@ static const char TargetDeviceName   [] = TARGET_DEVICE_NAME;
 static const char TargetBoardVendor  [] = TARGET_BOARD_VENDOR;
 static const char TargetBoardName    [] = TARGET_BOARD_NAME;
 #endif
+
+extern gptimer_handle_t gptimer;  // Defined in hid_dap.c
 
 /** Get Vendor Name string.
 \param str Pointer to buffer to store the string (max 60 characters).
@@ -322,9 +326,11 @@ Configures the DAP Hardware I/O pins for Serial Wire Debug (SWD) mode:
  - TDI, nTRST to HighZ mode (pins are unused in SWD mode).
 */
 __STATIC_INLINE void PORT_SWD_SETUP (void) {
+  ESP_LOGI("DAP_config", "PORT_SWD_SETUP");
+
   gpio_config_t conf_swclk_swdio = {
     .pin_bit_mask = (1ULL << PIN_SWCLK) | (1ULL << PIN_SWDIO),
-    .mode = GPIO_MODE_OUTPUT,
+    .mode = GPIO_MODE_INPUT_OUTPUT,
     .pull_up_en = GPIO_PULLUP_DISABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
     .intr_type = GPIO_INTR_DISABLE
@@ -333,7 +339,7 @@ __STATIC_INLINE void PORT_SWD_SETUP (void) {
 
   gpio_config_t conf_nreset = {
     .pin_bit_mask = (1ULL << PIN_NRESET),
-    .mode = GPIO_MODE_OUTPUT_OD,
+    .mode = GPIO_MODE_INPUT_OUTPUT_OD,
     .pull_up_en = GPIO_PULLUP_ENABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
     .intr_type = GPIO_INTR_DISABLE
@@ -346,23 +352,21 @@ Disables the DAP Hardware I/O pins which configures:
  - TCK/SWCLK, TMS/SWDIO, TDI, TDO, nTRST, nRESET to High-Z mode.
 */
 __STATIC_INLINE void PORT_OFF (void) {
-  gpio_config_t conf_swclk_swdio = {
-    .pin_bit_mask = (1ULL << PIN_SWCLK) | (1ULL << PIN_SWDIO),
+  ESP_LOGI("DAP_config", "PORT_OFF");
+
+  // Initial state of SWD pins have to be HIGH
+  // See: CMSIS-DAP LPC-Link2 example https://github.com/ARM-software/CMSIS_5/blob/a75f01746df18bb5b929dfb8dc6c9407fac3a0f3/CMSIS/DAP/Firmware/Examples/LPC-Link2/DAP_config.h#L408-L415
+  gpio_set_level(PIN_SWCLK, 1);
+  gpio_set_level(PIN_SWDIO, 1);
+
+  gpio_config_t conf = {
+    .pin_bit_mask = (1ULL << PIN_SWCLK) | (1ULL << PIN_SWDIO) | (1ULL << PIN_NRESET),
     .mode = GPIO_MODE_DISABLE,
     .pull_up_en = GPIO_PULLUP_DISABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
     .intr_type = GPIO_INTR_DISABLE
   };
-  ESP_ERROR_CHECK(gpio_config(&conf_swclk_swdio));
-
-  gpio_config_t conf_nreset = {
-    .pin_bit_mask = (1ULL << PIN_NRESET),
-    .mode = GPIO_MODE_DISABLE,
-    .pull_up_en = GPIO_PULLUP_ENABLE,
-    .pull_down_en = GPIO_PULLDOWN_DISABLE,
-    .intr_type = GPIO_INTR_DISABLE
-  };
-  ESP_ERROR_CHECK(gpio_config(&conf_nreset));
+  ESP_ERROR_CHECK(gpio_config(&conf));
 }
 
 
@@ -424,7 +428,7 @@ __STATIC_FORCEINLINE uint32_t PIN_SWDIO_IN      (void) {
 \param bit Output value for the SWDIO DAP hardware I/O pin.
 */
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT     (uint32_t bit) {
-  gpio_set_level(PIN_SWDIO, bit);
+  gpio_set_level(PIN_SWDIO, bit & 0x1); // Filter out junk data in non-first bits (See SWD_TransferFunction in SW_DP.c)
 }
 
 /** SWDIO I/O pin: Switch to Output mode (used in SWD mode only).
@@ -432,7 +436,9 @@ Configure the SWDIO DAP hardware I/O pin to output mode. This function is
 called prior \ref PIN_SWDIO_OUT function calls.
 */
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT_ENABLE  (void) {
-  ESP_ERROR_CHECK(gpio_set_direction(PIN_SWDIO, GPIO_MODE_OUTPUT));
+  ESP_LOGI("DAP_config", "PIN_SWDIO_OUT_ENABLE");
+
+  ESP_ERROR_CHECK(gpio_set_direction(PIN_SWDIO, GPIO_MODE_INPUT_OUTPUT));
 }
 
 /** SWDIO I/O pin: Switch to Input mode (used in SWD mode only).
@@ -440,6 +446,8 @@ Configure the SWDIO DAP hardware I/O pin to input mode. This function is
 called prior \ref PIN_SWDIO_IN function calls.
 */
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT_DISABLE (void) {
+  ESP_LOGI("DAP_config", "PIN_SWDIO_OUT_DISABLE");
+
   ESP_ERROR_CHECK(gpio_set_direction(PIN_SWDIO, GPIO_MODE_INPUT));
 }
 
@@ -556,8 +564,10 @@ default, the DWT timer is used.  The frequency of this timer is configured with 
 \return Current timestamp value.
 */
 __STATIC_INLINE uint32_t TIMESTAMP_GET (void) {
-  // TODO: Probably 1 us resolution is too low
-  return (uint32_t)esp_timer_get_time();
+  uint64_t count;
+  ESP_ERROR_CHECK(gptimer_get_raw_count(gptimer, &count));
+  
+  return (uint32_t)(count & 0xFFFFFFFF);
 }
 
 ///@}
@@ -581,9 +591,16 @@ Status LEDs. In detail the operation of Hardware I/O and LED pins are enabled an
  - LED output pins are enabled and LEDs are turned off.
 */
 __STATIC_INLINE void DAP_SETUP (void) {
+  ESP_LOGI("DAP_config", "DAP_SETUP");
+
+  // Initial state of SWD pins have to be HIGH
+  // See: CMSIS-DAP LPC-Link2 example https://github.com/ARM-software/CMSIS_5/blob/a75f01746df18bb5b929dfb8dc6c9407fac3a0f3/CMSIS/DAP/Firmware/Examples/LPC-Link2/DAP_config.h#L408-L415
+  gpio_set_level(PIN_SWCLK, 1);
+  gpio_set_level(PIN_SWDIO, 1);
+
   gpio_config_t conf_swclk_swdio = {
     .pin_bit_mask = (1ULL << PIN_SWCLK) | (1ULL << PIN_SWDIO),
-    .mode = GPIO_MODE_DISABLE,
+    .mode = GPIO_MODE_INPUT,
     .pull_up_en = GPIO_PULLUP_DISABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
     .intr_type = GPIO_INTR_DISABLE
@@ -592,12 +609,19 @@ __STATIC_INLINE void DAP_SETUP (void) {
 
   gpio_config_t conf_nreset = {
     .pin_bit_mask = (1ULL << PIN_NRESET),
-    .mode = GPIO_MODE_DISABLE,
+    .mode = GPIO_MODE_INPUT,
     .pull_up_en = GPIO_PULLUP_ENABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
     .intr_type = GPIO_INTR_DISABLE
   };
   ESP_ERROR_CHECK(gpio_config(&conf_nreset));
+
+  gptimer_config_t gptimer_config = {
+    .clk_src = GPTIMER_CLK_SRC_APB,
+    .direction = GPTIMER_COUNT_UP,
+    .resolution_hz = TIMESTAMP_CLOCK
+  };
+  ESP_ERROR_CHECK(gptimer_new_timer(&gptimer_config, &gptimer));
 }
 
 /** Reset Target Device with custom specific I/O pin or command sequence.

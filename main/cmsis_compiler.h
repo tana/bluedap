@@ -6,3 +6,5 @@
 #define __WEAK __attribute__((weak))
 
 #define __ASM asm
+
+#define __NOP() asm volatile ("nop")

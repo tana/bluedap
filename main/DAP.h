@@ -333,14 +333,20 @@ __STATIC_FORCEINLINE void PIN_DELAY_SLOW (uint32_t delay) {
 }
 #else
 __STATIC_FORCEINLINE void PIN_DELAY_SLOW (uint32_t delay) {
-  volatile uint32_t count = delay;
-  while (--count);
+  // Delay in RISC-V assembly
+  // TODO: Add Xtensa version
+  asm volatile (
+      "loop%=:"
+      "addi %0, %0, -1 \n\t"
+      "bne %0, zero, loop%=\n"
+    : "+r" (delay)
+  );
 }
 #endif
 
 // Fixed delay for fast clock generation
 #ifndef DELAY_FAST_CYCLES
-#define DELAY_FAST_CYCLES       0U      // Number of cycles: 0..3
+#define DELAY_FAST_CYCLES       3U      // Number of cycles: 0..3
 #endif
 __STATIC_FORCEINLINE void PIN_DELAY_FAST (void) {
 #if (DELAY_FAST_CYCLES >= 1U)

@@ -61,6 +61,9 @@ QueueHandle_t request_queue;
 // Mutex for input report data (to prevent sending or receiving broken data)
 SemaphoreHandle_t input_report_mutex;
 
+// Used in DAP_config.h
+gptimer_handle_t gptimer;
+
 static const struct ble_gatt_svc_def gatt_services[] = {
     // HID service
     {
@@ -201,8 +204,12 @@ static int on_hid_output_report_access(uint16_t conn_handle, uint16_t attr_handl
     case BLE_GATT_ACCESS_OP_WRITE_CHR:
         // See Apache Mynewt tutorial https://mynewt.apache.org/latest/tutorials/ble/bleprph/bleprph-sections/bleprph-chr-access.html#write-access
         rc = ble_hs_mbuf_to_flat(ctxt->om, output_report_data, sizeof(output_report_data), NULL);
-        // Send received data to DAP task
-        xQueueSend(request_queue, output_report_data, 0);   // Overflow is ignoread silently
+        if (output_report_data[0] == ID_DAP_TransferAbort) {
+            DAP_TransferAbort = 1U; // DAP_TransferAbort command is handled without queueing
+        } else {
+            // Send received data to DAP task
+            xQueueSend(request_queue, output_report_data, 0);   // Overflow is ignoread silently
+        }
         return (rc == 0) ? 0 : BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     
     case BLE_GATT_ACCESS_OP_READ_CHR:
