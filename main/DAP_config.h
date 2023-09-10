@@ -622,6 +622,8 @@ __STATIC_INLINE void DAP_SETUP (void) {
     .resolution_hz = TIMESTAMP_CLOCK
   };
   ESP_ERROR_CHECK(gptimer_new_timer(&gptimer_config, &gptimer));
+  ESP_ERROR_CHECK(gptimer_enable(gptimer));
+  ESP_ERROR_CHECK(gptimer_start(gptimer));
 }
 
 /** Reset Target Device with custom specific I/O pin or command sequence.
