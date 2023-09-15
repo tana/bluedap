@@ -329,7 +329,7 @@ int hid_dap_init(void)
     }
 
     ble_task_handle = xTaskGetCurrentTaskHandle();
-    request_queue = xQueueCreate(DAP_PACKET_COUNT, sizeof(DAP_PACKET_SIZE));
+    request_queue = xQueueCreate(DAP_PACKET_COUNT, DAP_PACKET_SIZE);
     input_report_mutex = xSemaphoreCreateMutex();
     // DAP processing is done in another FreeRTOS task
     xTaskCreate(dap_task, "dap", 4096, NULL, 2, &dap_task_handle);
