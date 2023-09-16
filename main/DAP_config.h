@@ -58,7 +58,6 @@ This information includes:
 #include "driver/gpio.h"
 #include "driver/gptimer.h"
 #include "esp_log.h"
-#include "pin_defs.h"
 
 /// Processor Clock of the Cortex-M MCU used in the Debug Unit.
 /// This value is used to calculate the SWD/JTAG clock speed.
@@ -329,7 +328,7 @@ __STATIC_INLINE void PORT_SWD_SETUP (void) {
   ESP_LOGI("DAP_config", "PORT_SWD_SETUP");
 
   gpio_config_t conf_swclk_swdio = {
-    .pin_bit_mask = (1ULL << PIN_SWCLK) | (1ULL << PIN_SWDIO),
+    .pin_bit_mask = (1ULL << CONFIG_PIN_SWCLK) | (1ULL << CONFIG_PIN_SWDIO),
     .mode = GPIO_MODE_INPUT_OUTPUT,
     .pull_up_en = GPIO_PULLUP_DISABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -338,7 +337,7 @@ __STATIC_INLINE void PORT_SWD_SETUP (void) {
   ESP_ERROR_CHECK(gpio_config(&conf_swclk_swdio));
 
   gpio_config_t conf_nreset = {
-    .pin_bit_mask = (1ULL << PIN_NRESET),
+    .pin_bit_mask = (1ULL << CONFIG_PIN_NRESET),
     .mode = GPIO_MODE_INPUT_OUTPUT_OD,
     .pull_up_en = GPIO_PULLUP_ENABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -356,11 +355,11 @@ __STATIC_INLINE void PORT_OFF (void) {
 
   // Initial state of SWD pins have to be HIGH
   // See: CMSIS-DAP LPC-Link2 example https://github.com/ARM-software/CMSIS_5/blob/a75f01746df18bb5b929dfb8dc6c9407fac3a0f3/CMSIS/DAP/Firmware/Examples/LPC-Link2/DAP_config.h#L408-L415
-  gpio_set_level(PIN_SWCLK, 1);
-  gpio_set_level(PIN_SWDIO, 1);
+  gpio_set_level(CONFIG_PIN_SWCLK, 1);
+  gpio_set_level(CONFIG_PIN_SWDIO, 1);
 
   gpio_config_t conf = {
-    .pin_bit_mask = (1ULL << PIN_SWCLK) | (1ULL << PIN_SWDIO) | (1ULL << PIN_NRESET),
+    .pin_bit_mask = (1ULL << CONFIG_PIN_SWCLK) | (1ULL << CONFIG_PIN_SWDIO) | (1ULL << CONFIG_PIN_NRESET),
     .mode = GPIO_MODE_DISABLE,
     .pull_up_en = GPIO_PULLUP_DISABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -376,21 +375,21 @@ __STATIC_INLINE void PORT_OFF (void) {
 \return Current status of the SWCLK/TCK DAP hardware I/O pin.
 */
 __STATIC_FORCEINLINE uint32_t PIN_SWCLK_TCK_IN  (void) {
-  return gpio_get_level(PIN_SWCLK);
+  return gpio_get_level(CONFIG_PIN_SWCLK);
 }
 
 /** SWCLK/TCK I/O pin: Set Output to High.
 Set the SWCLK/TCK DAP hardware I/O pin to high level.
 */
 __STATIC_FORCEINLINE void     PIN_SWCLK_TCK_SET (void) {
-  gpio_set_level(PIN_SWCLK, 1);
+  gpio_set_level(CONFIG_PIN_SWCLK, 1);
 }
 
 /** SWCLK/TCK I/O pin: Set Output to Low.
 Set the SWCLK/TCK DAP hardware I/O pin to low level.
 */
 __STATIC_FORCEINLINE void     PIN_SWCLK_TCK_CLR (void) {
-  gpio_set_level(PIN_SWCLK, 0);
+  gpio_set_level(CONFIG_PIN_SWCLK, 0);
 }
 
 
@@ -400,35 +399,35 @@ __STATIC_FORCEINLINE void     PIN_SWCLK_TCK_CLR (void) {
 \return Current status of the SWDIO/TMS DAP hardware I/O pin.
 */
 __STATIC_FORCEINLINE uint32_t PIN_SWDIO_TMS_IN  (void) {
-  return gpio_get_level(PIN_SWDIO);
+  return gpio_get_level(CONFIG_PIN_SWDIO);
 }
 
 /** SWDIO/TMS I/O pin: Set Output to High.
 Set the SWDIO/TMS DAP hardware I/O pin to high level.
 */
 __STATIC_FORCEINLINE void     PIN_SWDIO_TMS_SET (void) {
-  gpio_set_level(PIN_SWDIO, 1);
+  gpio_set_level(CONFIG_PIN_SWDIO, 1);
 }
 
 /** SWDIO/TMS I/O pin: Set Output to Low.
 Set the SWDIO/TMS DAP hardware I/O pin to low level.
 */
 __STATIC_FORCEINLINE void     PIN_SWDIO_TMS_CLR (void) {
-  gpio_set_level(PIN_SWDIO, 0);
+  gpio_set_level(CONFIG_PIN_SWDIO, 0);
 }
 
 /** SWDIO I/O pin: Get Input (used in SWD mode only).
 \return Current status of the SWDIO DAP hardware I/O pin.
 */
 __STATIC_FORCEINLINE uint32_t PIN_SWDIO_IN      (void) {
-  return gpio_get_level(PIN_SWDIO);
+  return gpio_get_level(CONFIG_PIN_SWDIO);
 }
 
 /** SWDIO I/O pin: Set Output (used in SWD mode only).
 \param bit Output value for the SWDIO DAP hardware I/O pin.
 */
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT     (uint32_t bit) {
-  gpio_set_level(PIN_SWDIO, bit & 0x1); // Filter out junk data in non-first bits (See SWD_TransferFunction in SW_DP.c)
+  gpio_set_level(CONFIG_PIN_SWDIO, bit & 0x1); // Filter out junk data in non-first bits (See SWD_TransferFunction in SW_DP.c)
 }
 
 /** SWDIO I/O pin: Switch to Output mode (used in SWD mode only).
@@ -436,7 +435,7 @@ Configure the SWDIO DAP hardware I/O pin to output mode. This function is
 called prior \ref PIN_SWDIO_OUT function calls.
 */
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT_ENABLE  (void) {
-  ESP_ERROR_CHECK(gpio_set_direction(PIN_SWDIO, GPIO_MODE_INPUT_OUTPUT));
+  ESP_ERROR_CHECK(gpio_set_direction(CONFIG_PIN_SWDIO, GPIO_MODE_INPUT_OUTPUT));
 }
 
 /** SWDIO I/O pin: Switch to Input mode (used in SWD mode only).
@@ -444,7 +443,7 @@ Configure the SWDIO DAP hardware I/O pin to input mode. This function is
 called prior \ref PIN_SWDIO_IN function calls.
 */
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT_DISABLE (void) {
-  ESP_ERROR_CHECK(gpio_set_direction(PIN_SWDIO, GPIO_MODE_INPUT));
+  ESP_ERROR_CHECK(gpio_set_direction(CONFIG_PIN_SWDIO, GPIO_MODE_INPUT));
 }
 
 
@@ -499,7 +498,7 @@ __STATIC_FORCEINLINE void     PIN_nTRST_OUT  (uint32_t bit) {
 \return Current status of the nRESET DAP hardware I/O pin.
 */
 __STATIC_FORCEINLINE uint32_t PIN_nRESET_IN  (void) {
-  return gpio_get_level(PIN_NRESET);
+  return gpio_get_level(CONFIG_PIN_NRESET);
 }
 
 /** nRESET I/O pin: Set Output.
@@ -508,7 +507,7 @@ __STATIC_FORCEINLINE uint32_t PIN_nRESET_IN  (void) {
            - 1: release device hardware reset.
 */
 __STATIC_FORCEINLINE void     PIN_nRESET_OUT (uint32_t bit) {
-  ESP_ERROR_CHECK(gpio_set_level(PIN_NRESET, bit));
+  ESP_ERROR_CHECK(gpio_set_level(CONFIG_PIN_NRESET, bit));
 }
 
 ///@}
@@ -591,11 +590,11 @@ __STATIC_INLINE void DAP_SETUP (void) {
 
   // Initial state of SWD pins have to be HIGH
   // See: CMSIS-DAP LPC-Link2 example https://github.com/ARM-software/CMSIS_5/blob/a75f01746df18bb5b929dfb8dc6c9407fac3a0f3/CMSIS/DAP/Firmware/Examples/LPC-Link2/DAP_config.h#L408-L415
-  gpio_set_level(PIN_SWCLK, 1);
-  gpio_set_level(PIN_SWDIO, 1);
+  gpio_set_level(CONFIG_PIN_SWCLK, 1);
+  gpio_set_level(CONFIG_PIN_SWDIO, 1);
 
   gpio_config_t conf_swclk_swdio = {
-    .pin_bit_mask = (1ULL << PIN_SWCLK) | (1ULL << PIN_SWDIO),
+    .pin_bit_mask = (1ULL << CONFIG_PIN_SWCLK) | (1ULL << CONFIG_PIN_SWDIO),
     .mode = GPIO_MODE_INPUT,
     .pull_up_en = GPIO_PULLUP_DISABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -604,7 +603,7 @@ __STATIC_INLINE void DAP_SETUP (void) {
   ESP_ERROR_CHECK(gpio_config(&conf_swclk_swdio));
 
   gpio_config_t conf_nreset = {
-    .pin_bit_mask = (1ULL << PIN_NRESET),
+    .pin_bit_mask = (1ULL << CONFIG_PIN_NRESET),
     .mode = GPIO_MODE_INPUT,
     .pull_up_en = GPIO_PULLUP_ENABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,

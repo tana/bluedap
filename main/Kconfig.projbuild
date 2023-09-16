@@ -1,0 +1,22 @@
+menu "bluedap configuration"
+    config PIN_SWCLK
+        int "SWCLK pin"
+        range 0 48
+        default 4
+        help
+            GPIO number for SWCLK (SWD clock) pin.
+
+    config PIN_SWDIO
+        int "SWDIO pin"
+        range 0 48
+        default 5
+        help
+            GPIO number for SWDIO (SWD data input/output) pin.
+
+    config PIN_NRESET
+        int "nRESET pin"
+        range 0 48
+        default 6
+        help
+            GPIO number for nRESET (reset signal for target device) pin.
+endmenu
