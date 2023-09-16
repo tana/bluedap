@@ -436,8 +436,6 @@ Configure the SWDIO DAP hardware I/O pin to output mode. This function is
 called prior \ref PIN_SWDIO_OUT function calls.
 */
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT_ENABLE  (void) {
-  ESP_LOGI("DAP_config", "PIN_SWDIO_OUT_ENABLE");
-
   ESP_ERROR_CHECK(gpio_set_direction(PIN_SWDIO, GPIO_MODE_INPUT_OUTPUT));
 }
 
@@ -446,8 +444,6 @@ Configure the SWDIO DAP hardware I/O pin to input mode. This function is
 called prior \ref PIN_SWDIO_IN function calls.
 */
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT_DISABLE (void) {
-  ESP_LOGI("DAP_config", "PIN_SWDIO_OUT_DISABLE");
-
   ESP_ERROR_CHECK(gpio_set_direction(PIN_SWDIO, GPIO_MODE_INPUT));
 }
 
