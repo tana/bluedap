@@ -19,4 +19,10 @@ menu "bluedap configuration"
         default 6
         help
             GPIO number for nRESET (reset signal for target device) pin.
+    
+    config USE_PIN_AUTH
+        bool "Use PIN code authentication"
+        default y
+        help
+            Use PIN code authentication during pairing. This is recommended for security.
 endmenu

@@ -6,6 +6,7 @@
 #include <string.h>
 #include "sdkconfig.h"
 #include "esp_log.h"
+#include "esp_random.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
@@ -100,6 +101,33 @@ int on_adv_event(struct ble_gap_event *event, void *arg)
         ble_store_util_delete_peer(&conn_desc.peer_id_addr);
         return BLE_GAP_REPEAT_PAIRING_RETRY;    // Old bond is removed and pairing process should be done again
     
+    case BLE_GAP_EVENT_PASSKEY_ACTION:
+        // Do passkey (PIN code) authentication
+        // Reference: esp-idf bleprph example https://github.com/espressif/esp-idf/blob/62ee4135e033cc85eb0d7572e5b5d147bcb4349e/examples/bluetooth/nimble/bleprph/main/main.c#L351-L394
+        if (event->passkey.params.action == BLE_SM_IOACT_DISP) {
+            // Generate 6-digit passkey using hardware random number generator
+            // Rejection sampling is used to avoid bias (Reference: https://www.pcg-random.org/posts/bounded-rands.html )
+            uint32_t passkey;
+            const uint32_t divisor = (uint64_t)UINT32_MAX / (uint64_t)1000000;
+            do {
+                passkey = esp_random() / divisor;   
+                // Because divisor is slightly smaller than actual real-number value, the passkey above may be larger than 6-digit range.
+                // In such case, the passkey is generated again.
+            } while (passkey >= 1000000);
+            // Write the generated number on the serial port
+            printf("PIN code: %06lu\n", passkey);
+            // Register the generated PIN code to the BLE security manager
+            struct ble_sm_io pkey = { 0 };
+            pkey.action = BLE_SM_IOACT_DISP;
+            pkey.passkey = passkey;
+            rc = ble_sm_inject_io(event->passkey.conn_handle, &pkey);
+            assert(rc == 0);
+        } else {
+            ESP_LOGE(TAG, "Unsupported passkey action");
+        }
+
+        return 0;
+    
     case BLE_GAP_EVENT_SUBSCRIBE:
         rc = hid_dap_handle_subscribe_event(event);
         assert(rc == 0);
@@ -176,7 +204,11 @@ void app_main(void)
     // Set security/bonding related settings
     // Reference: esp-idf bleprph example https://github.com/espressif/esp-idf/blob/62ee4135e033cc85eb0d7572e5b5d147bcb4349e/examples/bluetooth/nimble/bleprph/main/main.c#L517-L540
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;  // TODO:
+#ifdef CONFIG_USE_PIN_AUTH
+    ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_DISP_ONLY; // This device has a display (actually a serial port)
+#else
     ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_NO_IO; // This device has no IO (e.g. display, keyboard) for pairing
+#endif
     ble_hs_cfg.sm_bonding = 1;  // Enable bonding
     ble_hs_cfg.sm_our_key_dist |= BLE_SM_PAIR_KEY_DIST_ENC; // ?
     ble_hs_cfg.sm_their_key_dist |= BLE_SM_PAIR_KEY_DIST_ENC;   // ?

@@ -16,11 +16,11 @@ Wireless SWD debug probe firmware for ESP32 series.
     | GPIO4 | SWCLK | |
     | GPIO5 | SWDIO | |
     | GPIO6 | RESET | (optional) |
-3. On a PC, pair a Bluetooth LE device named `bluedap CMSIS-DAP` or `bluedap`.
-4. Now you can use your favorite CMSIS-DAP-compatible software!
+3. Plug the ESP into USB port of a PC and open [serial console](https://docs.espressif.com/projects/esp-idf/en/latest/esp32c3/api-reference/kconfig.html#config-esp-console-uart).
+3. On a PC, pair a Bluetooth LE device named `bluedap CMSIS-DAP` or `bluedap`. **The required PIN code is displayed on the serial console.**
+4. Now you can use your favorite CMSIS-DAP-compatible software! **Pairing using serial console is no longer needed for subsequent uses.**
 
 ## TODO
-- [ ] PIN code pairing to improve security
 - [ ] Faster communication using LE 2M PHY
 - [ ] JTAG support for non-Arm targets
 - [ ] Virtual serial port
