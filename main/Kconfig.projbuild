@@ -25,4 +25,31 @@ menu "bluedap configuration"
         default y
         help
             Use PIN code authentication during pairing. This is recommended for security.
+    
+    config DEVICE_NAME
+        string "Device name"
+        default "bluedap CMSIS-DAP"
+        help
+            Name of the debug probe. It must contain "CMSIS-DAP" to be recognized by debugging software.
+    
+    config VID
+        hex "Vendor ID"
+        default 0xDEAD
+        range 0x0 0xFFFF
+        help
+            Vendor ID (VID) as defined in the USB spec.
+    
+    config PID
+        hex "Product ID"
+        default 0xBEEF
+        range 0x0 0xFFFF
+        help
+            Product ID (PID) as defined in the USB spec.
+    
+    config PRODUCT_VERSION
+        hex "Device version"
+        default 0x0001
+        range 0x0 0xFFFF
+        help
+            Product version in binary-coded decimal (BCD) format.
 endmenu

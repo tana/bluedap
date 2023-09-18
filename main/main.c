@@ -24,7 +24,7 @@ static const char* TAG = "main";
 
 // To be recognized as a CMSIS-DAP, the Device Name (Product String in USB) must contain it
 // Reference: https://arm-software.github.io/CMSIS_5/DAP/html/group__DAP__ConfigUSB__gr.html
-static const char* DEVICE_NAME = "bluedap CMSIS-DAP";
+static const char* DEVICE_NAME = CONFIG_DEVICE_NAME;
 
 static uint8_t ble_addr_type;  // BLE address type
 static uint16_t ble_conn_handle;    // BLE connection handle

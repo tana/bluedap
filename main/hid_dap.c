@@ -282,9 +282,9 @@ static int on_device_info_pnp_id_access(uint16_t conn_handle, uint16_t attr_hand
 
     uint8_t data[] = { 
         0x02,   // VID assigned by USB Implementer's Forum
-        LITTLE_ENDIAN_16BIT(0xDEAD),    // VID
-        LITTLE_ENDIAN_16BIT(0xBEEF),    // PID
-        LITTLE_ENDIAN_16BIT(0x0001),    // Product Version = 0.0.1
+        LITTLE_ENDIAN_16BIT(CONFIG_VID),    // VID
+        LITTLE_ENDIAN_16BIT(CONFIG_PID),    // PID
+        LITTLE_ENDIAN_16BIT(CONFIG_PRODUCT_VERSION),    // Product Version
     };
 
     int rc = os_mbuf_append(ctxt->om, data, sizeof(data));
