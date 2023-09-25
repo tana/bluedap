@@ -83,6 +83,18 @@ int on_adv_event(struct ble_gap_event *event, void *arg)
         if (event->connect.status == 0) {
             ESP_LOGI(TAG, "BLE connection established");
             ble_conn_handle = event->connect.conn_handle;
+
+            // Change Conncetion Interval to minimal value (7.5 ms) for speed
+            struct ble_gap_upd_params upd_params = {
+                .itvl_max = 6,  // 7.5 ms
+                .itvl_min = 6,  // 7.5 ms
+                .latency = BLE_GAP_INITIAL_CONN_LATENCY,
+                .max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN,
+                .min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN,
+                .supervision_timeout = BLE_GAP_INITIAL_SUPERVISION_TIMEOUT
+            };
+            rc = ble_gap_update_params(ble_conn_handle, &upd_params);
+            assert(rc == 0);
         } else {
             ESP_LOGI(TAG, "BLE connection failed (status = 0x%04x)", event->connect.status);
             ble_advertise();
