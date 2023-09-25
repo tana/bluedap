@@ -77,7 +77,11 @@ This information includes:
 
 /// Indicate that JTAG communication mode is available at the Debug Port.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
+#ifdef CONFIG_ENABLE_JTAG
+#define DAP_JTAG                1               ///< JTAG Mode: 1 = available, 0 = not available.
+#else
 #define DAP_JTAG                0               ///< JTAG Mode: 1 = available, 0 = not available.
+#endif
 
 /// Configure maximum number of JTAG devices on the scan chain connected to the Debug Access Port.
 /// This setting impacts the RAM requirements of the Debug Unit. Valid range is 1 .. 255.
@@ -316,7 +320,36 @@ Configures the DAP Hardware I/O pins for JTAG mode:
  - TDO to input mode.
 */
 __STATIC_INLINE void PORT_JTAG_SETUP (void) {
-  ;
+#ifdef CONFIG_ENABLE_JTAG
+  ESP_LOGI("DAP_config", "PORT_JTAG_SETUP");
+
+  gpio_config_t conf_tck_tms_tdi = {
+    .pin_bit_mask = (1ULL << CONFIG_PIN_SWCLK) | (1ULL << CONFIG_PIN_SWDIO) | (1ULL << CONFIG_PIN_TDI),
+    .mode = GPIO_MODE_OUTPUT,
+    .pull_up_en = GPIO_PULLUP_DISABLE,
+    .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    .intr_type = GPIO_INTR_DISABLE
+  };
+  ESP_ERROR_CHECK(gpio_config(&conf_tck_tms_tdi));
+
+  gpio_config_t conf_tdo = {
+    .pin_bit_mask = (1ULL << CONFIG_PIN_TDO),
+    .mode = GPIO_MODE_INPUT,
+    .pull_up_en = GPIO_PULLUP_DISABLE,
+    .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    .intr_type = GPIO_INTR_DISABLE
+  };
+  ESP_ERROR_CHECK(gpio_config(&conf_tdo));
+
+  gpio_config_t conf_nreset = {
+    .pin_bit_mask = (1ULL << CONFIG_PIN_NRESET),
+    .mode = GPIO_MODE_INPUT_OUTPUT_OD,
+    .pull_up_en = GPIO_PULLUP_ENABLE,
+    .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    .intr_type = GPIO_INTR_DISABLE
+  };
+  ESP_ERROR_CHECK(gpio_config(&conf_nreset));
+#endif  // CONFIG_ENABLE_JTAG
 }
 
 /** Setup SWD I/O pins: SWCLK, SWDIO, and nRESET.
@@ -344,6 +377,17 @@ __STATIC_INLINE void PORT_SWD_SETUP (void) {
     .intr_type = GPIO_INTR_DISABLE
   };
   ESP_ERROR_CHECK(gpio_config(&conf_nreset));
+
+#ifdef CONFIG_ENABLE_JTAG
+  gpio_config_t conf_tdi_tdo = {
+    .pin_bit_mask = (1ULL << CONFIG_PIN_TDI) | (1ULL << CONFIG_PIN_TDO),
+    .mode = GPIO_MODE_DISABLE,
+    .pull_up_en = GPIO_PULLUP_DISABLE,
+    .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    .intr_type = GPIO_INTR_DISABLE
+  };
+  ESP_ERROR_CHECK(gpio_config(&conf_tdi_tdo));
+#endif  // CONFIG_ENABLE_JTAG
 }
 
 /** Disable JTAG/SWD I/O Pins.
@@ -359,7 +403,11 @@ __STATIC_INLINE void PORT_OFF (void) {
   gpio_set_level(CONFIG_PIN_SWDIO, 1);
 
   gpio_config_t conf = {
+#ifdef CONFIG_ENABLE_JTAG
+    .pin_bit_mask = (1ULL << CONFIG_PIN_SWCLK) | (1ULL << CONFIG_PIN_SWDIO) | (1ULL << CONFIG_PIN_TDI) | (1ULL << CONFIG_PIN_TDO) | (1ULL << CONFIG_PIN_NRESET),
+#else
     .pin_bit_mask = (1ULL << CONFIG_PIN_SWCLK) | (1ULL << CONFIG_PIN_SWDIO) | (1ULL << CONFIG_PIN_NRESET),
+#endif
     .mode = GPIO_MODE_DISABLE,
     .pull_up_en = GPIO_PULLUP_DISABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -446,21 +494,26 @@ __STATIC_FORCEINLINE void     PIN_SWDIO_OUT_DISABLE (void) {
   ESP_ERROR_CHECK(gpio_set_direction(CONFIG_PIN_SWDIO, GPIO_MODE_INPUT));
 }
 
-
 // TDI Pin I/O ---------------------------------------------
 
 /** TDI I/O pin: Get Input.
 \return Current status of the TDI DAP hardware I/O pin.
 */
 __STATIC_FORCEINLINE uint32_t PIN_TDI_IN  (void) {
+#ifdef CONFIG_ENABLE_JTAG
+  return gpio_get_level(CONFIG_PIN_TDI);
+#else
   return (0U);
+#endif // CONFIG_ENABLE_JTAG
 }
 
 /** TDI I/O pin: Set Output.
 \param bit Output value for the TDI DAP hardware I/O pin.
 */
 __STATIC_FORCEINLINE void     PIN_TDI_OUT (uint32_t bit) {
-  ;
+#ifdef CONFIG_ENABLE_JTAG
+  gpio_set_level(CONFIG_PIN_TDI, bit & 0x1); // Filter out junk data in non-first bits (See JTAG_TransferFunction in JTAG_DP.c)
+#endif // CONFIG_ENABLE_JTAG
 }
 
 
@@ -470,7 +523,11 @@ __STATIC_FORCEINLINE void     PIN_TDI_OUT (uint32_t bit) {
 \return Current status of the TDO DAP hardware I/O pin.
 */
 __STATIC_FORCEINLINE uint32_t PIN_TDO_IN  (void) {
+#ifdef CONFIG_ENABLE_JTAG
+  return gpio_get_level(CONFIG_PIN_TDO);
+#else
   return (0U);
+#endif // CONFIG_ENABLE_JTAG
 }
 
 
@@ -593,14 +650,18 @@ __STATIC_INLINE void DAP_SETUP (void) {
   gpio_set_level(CONFIG_PIN_SWCLK, 1);
   gpio_set_level(CONFIG_PIN_SWDIO, 1);
 
-  gpio_config_t conf_swclk_swdio = {
+  gpio_config_t conf_swj = {
+#ifdef CONFIG_ENABLE_JTAG
+    .pin_bit_mask = (1ULL << CONFIG_PIN_SWCLK) | (1ULL << CONFIG_PIN_SWDIO) | (1ULL << CONFIG_PIN_TDI) | (1ULL << CONFIG_PIN_TDO),
+#else
     .pin_bit_mask = (1ULL << CONFIG_PIN_SWCLK) | (1ULL << CONFIG_PIN_SWDIO),
+#endif // CONFIG_ENABLE_JTAG
     .mode = GPIO_MODE_INPUT,
     .pull_up_en = GPIO_PULLUP_DISABLE,
     .pull_down_en = GPIO_PULLDOWN_DISABLE,
     .intr_type = GPIO_INTR_DISABLE
   };
-  ESP_ERROR_CHECK(gpio_config(&conf_swclk_swdio));
+  ESP_ERROR_CHECK(gpio_config(&conf_swj));
 
   gpio_config_t conf_nreset = {
     .pin_bit_mask = (1ULL << CONFIG_PIN_NRESET),

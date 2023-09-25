@@ -1,17 +1,17 @@
 menu "bluedap configuration"
     config PIN_SWCLK
-        int "SWCLK pin"
+        int "SWCLK / TCK pin"
         range 0 48
         default 4
         help
-            GPIO number for SWCLK (SWD clock) pin.
+            GPIO number for SWCLK (SWD clock) / TCK (JTAG test clock) pin.
 
     config PIN_SWDIO
-        int "SWDIO pin"
+        int "SWDIO / TMS pin"
         range 0 48
         default 5
         help
-            GPIO number for SWDIO (SWD data input/output) pin.
+            GPIO number for SWDIO (SWD data input/output) / TMS (JTAG test mode select) pin.
 
     config PIN_NRESET
         int "nRESET pin"
@@ -19,6 +19,28 @@ menu "bluedap configuration"
         default 6
         help
             GPIO number for nRESET (reset signal for target device) pin.
+
+    config ENABLE_JTAG
+        bool "Enable JTAG support"
+        default y
+        help
+            Enable JTAG protocol support.
+    
+    config PIN_TDI
+        depends on ENABLE_JTAG
+        int "TDI pin"
+        range 0 48
+        default 7
+        help
+            GPIO number for TDI (JTAG test data input) pin.
+
+    config PIN_TDO
+        depends on ENABLE_JTAG
+        int "TDO pin"
+        range 0 48
+        default 8
+        help
+            GPIO number for TDO (JTAG test data output) pin.
     
     config USE_PIN_AUTH
         bool "Use PIN code authentication"
