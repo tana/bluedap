@@ -19,6 +19,7 @@
 #include "DAP_config.h"
 #include "DAP.h"
 #include "hid_dap.h"
+#include "nus_serial.h"
 
 static const char* TAG = "main";
 
@@ -140,6 +141,10 @@ int on_adv_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_SUBSCRIBE:
         rc = hid_dap_handle_subscribe_event(event);
         assert(rc == 0);
+#ifdef CONFIG_ENABLE_SERIAL
+        rc = nus_serial_handle_subscribe_event(event);
+        assert(rc == 0);
+#endif
         break;
     
     case BLE_GAP_EVENT_DISCONNECT:
@@ -238,6 +243,11 @@ void app_main(void)
 
     rc = hid_dap_init();
     assert(rc == 0);
+
+#ifdef CONFIG_ENABLE_SERIAL
+    rc = nus_serial_init();
+    assert(rc == 0);
+#endif
 
     // Start BLE task
     nimble_port_freertos_init(ble_host_task);

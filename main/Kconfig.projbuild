@@ -52,4 +52,34 @@ menu "bluedap configuration"
         range 0x0 0xFFFF
         help
             Product version in binary-coded decimal (BCD) format.
+    
+    config ENABLE_SERIAL
+        bool "Enable virtual serial port"
+        default y
+        help
+            Enable virtual serial port over BLE using Nordic UART Service.
+    
+    config SERIAL_INITIAL_BAUD
+        int "Serial port initial baud rate"
+        default 115200
+        range 1 10000000
+        depends on ENABLE_SERIAL
+        help
+            Baud rate of the serial port.
+    
+    config PIN_TX
+        int "Serial TX pin"
+        range 0 48
+        default 21
+        depends on ENABLE_SERIAL
+        help
+            TX (transmit) pin of the serial port.
+
+    config PIN_RX
+        int "Serial RX pin"
+        range 0 48
+        default 20
+        depends on ENABLE_SERIAL
+        help
+            RX (receive) pin of the serial port.
 endmenu
