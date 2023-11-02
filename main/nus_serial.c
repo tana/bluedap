@@ -78,6 +78,8 @@ static int on_tx_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_g
 
 static void serial_task(void *pvParameters)
 {
+    ESP_ERROR_CHECK(uart_set_pin(UART_PORT, CONFIG_PIN_TX, CONFIG_PIN_RX, -1, -1));
+
     uart_config_t config = {
         .baud_rate = CONFIG_SERIAL_INITIAL_BAUD,
         .data_bits = UART_DATA_8_BITS,

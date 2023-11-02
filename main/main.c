@@ -62,6 +62,22 @@ void ble_advertise()
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;   // This device can be connected by any devices
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;   // This device is always discoverable
 
+    // Set additional fields that does not fit in the advertisement data
+    // (Sent when requested by central device)
+    struct ble_hs_adv_fields rsp_fields;
+    memset(&rsp_fields, 0, sizeof(rsp_fields));
+#ifdef CONFIG_ENABLE_SERIAL
+    ble_uuid128_t service_uuids128[] = { BLE_UUID128_INIT(SVC_UUID128_NUS) };
+    rsp_fields.uuids128 = service_uuids128;
+    adv_fields.num_uuids128 = sizeof(service_uuids128) / sizeof(ble_uuid128_t);
+    adv_fields.uuids128_is_complete = 0;
+#endif
+
+    // RSP fields have to be set before starting advertisement
+    // Reference: https://www.esp32.com/viewtopic.php?t=28991#p101811
+    rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
+    assert(rc == 0);
+
     rc = ble_gap_adv_start(ble_addr_type, NULL, BLE_HS_FOREVER, &adv_params, on_adv_event, NULL);
     assert(rc == 0);
 

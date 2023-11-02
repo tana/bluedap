@@ -70,7 +70,7 @@ menu "bluedap configuration"
     config PIN_TX
         int "Serial TX pin"
         range 0 48
-        default 21
+        default 0
         depends on ENABLE_SERIAL
         help
             TX (transmit) pin of the serial port.
@@ -78,7 +78,7 @@ menu "bluedap configuration"
     config PIN_RX
         int "Serial RX pin"
         range 0 48
-        default 20
+        default 1
         depends on ENABLE_SERIAL
         help
             RX (receive) pin of the serial port.
